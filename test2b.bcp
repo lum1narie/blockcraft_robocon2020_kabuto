@@ -1,0 +1,83 @@
+float PI = 3.14159265358;
+float MOTOR_LF = MOTOR_0;
+float MOTOR_LB = MOTOR_1;
+float MOTOR_RF = MOTOR_2;
+float MOTOR_RB = MOTOR_3;
+float MOTOR_AUP = MOTOR_4;
+float MOTOR_AR = MOTOR_5;
+float MOTOR_AL = MOTOR_6;
+float SPEED = 12;
+float POWER = 30;
+float armUp = 0.0;
+float armWidth = 0.0;
+float main() {
+	float speedLeft = 0.0;
+	float speedRight = 0.0;
+	if (key(KEY_W)) {
+		speedLeft = (speedLeft + 1.0);
+		speedRight = (speedRight + 1.0);
+	}
+	if (key(KEY_S)) {
+		speedLeft = (speedLeft - 1.0);
+		speedRight = (speedRight - 1.0);
+	}
+	if (key(KEY_A)) {
+		speedLeft = (speedLeft - 0.75);
+		speedRight = (speedRight + 0.75);
+	}
+	if (key(KEY_D)) {
+		speedLeft = (speedLeft + 0.75);
+		speedRight = (speedRight - 0.75);
+	}
+	if (key(KEY_SPACE)) {
+		speedLeft = (speedLeft * 1.25);
+		speedRight = (speedRight * 1.25);
+	}
+	if (key(KEY_LEFT_SHIFT)) {
+		speedLeft = (speedLeft * 0.5);
+		speedRight = (speedRight * 0.5);
+	}
+	if (key(KEY_UP)) {
+		armUp = (armUp + 0.05);
+	}
+	if (key(KEY_DOWN)) {
+		armUp = (armUp - 0.05);
+	}
+	if (key(KEY_RIGHT)) {
+		armWidth = (armWidth + 0.05);
+	}
+	if (key(KEY_LEFT)) {
+		armWidth = (armWidth - 0.05);
+	}
+	if ((armUp < -2)) {
+		armUp = -2;
+	}
+	if ((PI < armUp)) {
+		armUp = PI;
+	}
+	if ((armWidth < -0.5)) {
+		armWidth = -0.5;
+	}
+	if (((PI * 0.5) < armWidth)) {
+		armWidth = (PI * 0.5);
+	}
+	set(MOTOR_LF, (speedLeft * SPEED));
+	set(MOTOR_LB, (speedLeft * SPEED));
+	set(MOTOR_RF, (0.0 - (speedRight * SPEED)));
+	set(MOTOR_RB, (0.0 - (speedRight * SPEED)));
+	setMotor(MOTOR_AUP, (0.0 - armUp));
+	setMotor(MOTOR_AR, armWidth);
+	setMotor(MOTOR_AL, (0.0 - armWidth));
+}
+float setMotor(float motor, float angle) {
+	set(motor, (getRanged((angle - get(motor))) * POWER));
+}
+float getRanged(float angle) {
+	while ((angle < PI)) {
+		angle = (angle + (PI * 2));
+	}
+	while ((PI < angle)) {
+		angle = (angle - (PI * 2));
+	}
+	return angle;
+}

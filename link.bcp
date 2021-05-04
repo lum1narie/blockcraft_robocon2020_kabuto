@@ -1,0 +1,4 @@
+
+float main() {
+	set(MOTOR_0, 5);
+}

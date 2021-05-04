@@ -1,0 +1,67 @@
+float NUM = 42;
+float state = 0;
+float lv;
+float rv;
+float cv;
+float main() {
+	float rs;
+	float ls;
+	if (key(KEY_W)) {
+		rs = (rs + 1);
+		ls = (ls + 1);
+	}
+	if (key(KEY_S)) {
+		rs = (rs - 1);
+		ls = (ls - 1);
+	}
+	if (key(KEY_D)) {
+		rs = (rs - 0.75);
+		ls = (ls + 0.75);
+	}
+	if (key(KEY_A)) {
+		rs = (rs + 0.75);
+		ls = (ls - 0.75);
+	}
+	if (keyDown(KEY_E)) {
+		state = (1 - state);
+	}
+	if (state) {
+		lv = ((lv * 0.5) + (get(SENSOR_L) * 0.5));
+		rv = ((rv * 0.5) + (get(SENSOR_R) * 0.5));
+		cv = ((cv * 0.5) + (get(SENSOR_C) * 0.5));
+		float left = (NUM < lv);
+		float right = (NUM < rv);
+		float center = (NUM < cv);
+		if (center) {
+			rs = (rs + 0.5);
+			ls = (ls + 0.5);
+		} else {
+			rs = (rs - 1);
+			ls = (ls - 1);
+		}
+		if ((!left && right)) {
+			rs = (rs - 1.25);
+			ls = (ls + 0.75);
+		} else {
+			if ((left && !right)) {
+				rs = (rs + 0.75);
+				ls = (ls - 1.25);
+			} else {
+				if ((!left && !right)) {
+					rs = (rs + 0.5);
+					ls = (ls + 0.5);
+				}
+			}
+		}
+	}
+	rs = (rs * 4);
+	ls = (ls * 4);
+	if (key(KEY_SPACE)) {
+		rs = (rs * 1.5);
+		ls = (ls * 1.5);
+	}
+	set(MOTOR_LF, ls);
+	set(MOTOR_LB, ls);
+	set(MOTOR_RF, (0.0 - rs));
+	set(MOTOR_RB, (0.0 - rs));
+}
