@@ -258,6 +258,25 @@ float operation_dock() {
 		left_pow = 1;
 		right_pow = -0.5;
 	}
+	if (key(KEY_UP)) {
+		arm_v_angle = val_move(arm_v_angle, 1, ARM_V_LIMIT_L, ARM_V_LIMIT_H, 50);
+		init_pid(ARM_V_ID);
+	}
+	if (key(KEY_DOWN)) {
+		arm_v_angle = val_move(arm_v_angle, -1, ARM_V_LIMIT_L, ARM_V_LIMIT_H, 50);
+		init_pid(ARM_V_ID);
+	}
+	if (key(KEY_LEFT)) {
+		arm_h_angle = val_move(arm_h_angle, -1, (0 - ARM_H_LIMIT), ARM_H_LIMIT, 50);
+		init_pid(ARM_H_ID);
+	}
+	if (key(KEY_RIGHT)) {
+		arm_h_angle = val_move(arm_h_angle, 1, (0 - ARM_H_LIMIT), ARM_H_LIMIT, 50);
+		init_pid(ARM_H_ID);
+	}
+	if (keyDown(KEY_Q)) {
+		is_arm_close = not(is_arm_close);
+	}
 }
 
 float state_start_init = 0;
