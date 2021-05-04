@@ -1,0 +1,40 @@
+float SPEED = 15;
+
+float count = 0;
+
+float main() {
+	float speed_right;
+	float speed_left;
+	if (key(KEY_W)) {
+		speed_right = (speed_right + 1);
+		speed_left = (speed_left + 1);
+	}
+	if (key(KEY_S)) {
+		speed_right = (speed_right - 1);
+		speed_left = (speed_left - 1);
+	}
+	if (key(KEY_D)) {
+		speed_right = (speed_right - 0.75);
+		speed_left = (speed_left + 0.75);
+	}
+	if (key(KEY_A)) {
+		speed_right = (speed_right + 0.75);
+		speed_left = (speed_left - 0.75);
+	}
+	speed_right = (speed_right * SPEED);
+	speed_left = (speed_left * SPEED);
+	set(MOTOR_0, speed_left);
+	set(MOTOR_1, speed_left);
+	set(MOTOR_2, (0 - speed_right));
+	set(MOTOR_3, (0 - speed_right));
+
+	float light_down = get(SENSOR_0);
+	float light_forward = get(SENSOR_1);
+	count = count + 1;
+	if (count > 25) {
+		print(light_down);
+		print(light_forward);
+		print(1000000);
+		count = 0;
+	}
+}
