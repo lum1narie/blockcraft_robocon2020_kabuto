@@ -1,0 +1,235 @@
+float PI = 3.14159265358;
+
+float SPEED = 20;
+
+float ARM_H_INIT = 0.0;
+float ARM_H_LIMIT = (PI / 8);
+float ARM_ANGLE_OFF = (0 - (PI / 4));
+float ARM_ANGLE_ON = (PI / 5);
+
+float ARM_HEIGHT_ORIGIN = 8.0;
+float ARM_HEIGHT_INIT = 3.0;
+float ARM_HEIGHT_LIMIT_L = -1.0;
+float ARM_HEIGHT_LIMIT_H = 11.0;
+float ARM_DISTANCE = 8.0;
+float ARM_L1 = 6.0;
+float ARM_L2 = 6.0;
+float ARM_L3 = 3.0;
+
+float ARM_1_K_P = 50;
+float ARM_1_K_I = 10;
+float ARM_1_K_D = 2.5;
+float ARM_2_K_P = 40;
+float ARM_2_K_I = 8;
+float ARM_2_K_D = 2;
+float ARM_3_K_P = 30;
+float ARM_3_K_I = 4;
+float ARM_3_K_D = 1;
+float ARM_H_K_P = 30;
+float ARM_H_K_I = 0.6;
+float ARM_H_K_D = 0.15;
+float ARM_K_P = 10;
+float ARM_K_I = 0.4;
+float ARM_K_D = 0.1;
+
+float PID_N = 5;
+float ARM_H_ID = 0;
+float ARM_1_ID = 1;
+float ARM_2_ID = 2;
+float ARM_3_ID = 3;
+float ARM_ID = 4;
+float pid_table[2 * PID_N];
+
+float MOTOR_RF = MOTOR_0;
+float MOTOR_LF = MOTOR_1;
+float MOTOR_RB = MOTOR_2;
+float MOTOR_LB = MOTOR_3;
+float MOTOR_ARM_1 = MOTOR_4;
+float MOTOR_ARM_2 = MOTOR_5;
+float MOTOR_ARM_3 = MOTOR_6;
+float MOTOR_ARM_H = MOTOR_7;
+float MOTOR_ARM_L = MOTOR_8;
+float MOTOR_ARM_R = MOTOR_9;
+
+float p_control(float val, float target, float k) {
+	return (k * (target - val));
+}
+
+float pid_control(float val, float target, float id, float k_p, float k_i, float k_d, float framerate) {
+	float last_i = id * 2;
+	float sum_i = id * 2 + 1;
+
+	float diff = target - val;
+	pid_table[sum_i] = pid_table[sum_i] + diff / framerate;
+
+	float retv = k_p * diff + k_i * pid_table[sum_i] + k_d * (diff - pid_table[last_i]) * framerate;
+	pid_table[last_i] = diff;
+
+	return retv;
+}
+
+float init_pid(float id){
+	float last_i = id * 2;
+	float sum_i = id * 2 + 1;
+
+	pid_table[last_i] = 0;
+	pid_table[sum_i] = 0;
+
+	return 0;
+}
+
+float val_move(float val, float move, float min, float max, float tick_n) {
+	float tick = ((max - min) / tick_n);
+
+	val = (val + (move * tick));
+
+	if ((max < val)) {
+		val = max;
+	} else {
+		if ((val < min)) {
+			val = min;
+		}
+	}
+
+	return val;
+}
+
+float calc_theta_1(float h_diff, float d, float th_2) {
+	return th_2 / 2 - atan(h_diff / d);
+}
+
+float calc_theta_2(float h_diff, float d, float l1, float l2) {
+	return acos((l1 * l1 + l2 * l2 - h_diff * h_diff - d * d)/(2 * l1 * l2));
+}
+
+float calc_theta_3(float th_1, float th_2) {
+	return PI + th_1 - th_2;
+}
+
+
+float dump_pid_table() {
+	float i = 0;
+	while (i < 2 * PID_N) {
+		print(pid_table[i]);
+		i = i + 1;
+	}
+	print(100000);
+}
+
+float dump_thetas(float h_diff, float th_1, float th_2, float th_3) {
+	print(h_diff);
+	print(th_1);
+	print(th_2);
+	print(th_3);
+	print(100000);
+}
+
+float not(float n) {
+	if (n) {
+		return 0;
+	} else {
+		return 1;
+	}
+}
+
+float arm_height = ARM_HEIGHT_INIT;
+float arm_h_angle = ARM_H_INIT;
+float arm_angle = ARM_ANGLE_OFF;
+float is_arm_close = 0;
+float is_debug_enabled = 0;
+float dump_wait = 0;
+
+float is_init = 1;
+float init() {
+	init_pid(ARM_H_ID);
+	init_pid(ARM_1_ID);
+	init_pid(ARM_2_ID);
+	init_pid(ARM_3_ID);
+	init_pid(ARM_ID);
+}
+
+float main() {
+	if (is_init) {
+		init();
+		is_init = 0;
+	}
+
+	float left_pow = 0.0;
+	float right_pow = 0.0;
+
+	if (key(KEY_W)) {
+		left_pow = 1;
+		right_pow = 1;
+	}
+	if (key(KEY_S)) {
+		left_pow = -1;
+		right_pow = -1;
+	}
+	if (key(KEY_A)) {
+		left_pow = -0.5;
+		right_pow = 1;
+	}
+	if (key(KEY_D)) {
+		left_pow = 1;
+		right_pow = -0.5;
+	}
+	if (key(KEY_UP)) {
+		arm_height = val_move(arm_height, 1, ARM_HEIGHT_LIMIT_L, ARM_HEIGHT_LIMIT_H, 50);
+		init_pid(ARM_1_ID);
+		init_pid(ARM_2_ID);
+		init_pid(ARM_3_ID);
+	}
+	if (key(KEY_DOWN)) {
+		arm_height = val_move(arm_height, -1, ARM_HEIGHT_LIMIT_L, ARM_HEIGHT_LIMIT_H, 50);
+		init_pid(ARM_1_ID);
+		init_pid(ARM_2_ID);
+		init_pid(ARM_3_ID);
+	}
+	if (key(KEY_LEFT)) {
+		arm_h_angle = val_move(arm_h_angle, -1, (0 - ARM_H_LIMIT), ARM_H_LIMIT, 50);
+		init_pid(ARM_H_ID);
+	}
+	if (key(KEY_RIGHT)) {
+		arm_h_angle = val_move(arm_h_angle, 1, (0 - ARM_H_LIMIT), ARM_H_LIMIT, 50);
+		init_pid(ARM_H_ID);
+	}
+	if (keyDown(KEY_SPACE)) {
+		is_arm_close = not(is_arm_close);
+	}
+	if (keyDown(KEY_E)) {
+		is_debug_enabled = not(is_debug_enabled);
+	}
+
+	if (is_arm_close) {
+		arm_angle = ARM_ANGLE_ON;
+	} else {
+		arm_angle = ARM_ANGLE_OFF;
+	}
+
+	float h_diff = arm_height + ARM_L3 - ARM_HEIGHT_ORIGIN;
+	float th_2 = calc_theta_2(h_diff, ARM_DISTANCE, ARM_L1, ARM_L2);
+	float th_1 = calc_theta_1(h_diff, ARM_DISTANCE, th_2);
+	float th_3 = calc_theta_3(th_1, th_2);
+
+	set(MOTOR_LF, (SPEED * left_pow));
+	set(MOTOR_LB, (SPEED * left_pow));
+	set(MOTOR_RF, (0 - (SPEED * right_pow)));
+	set(MOTOR_RB, (0 - (SPEED * right_pow)));
+	set(MOTOR_ARM_1, pid_control(get(MOTOR_ARM_1), -th_1, ARM_1_ID, ARM_1_K_P, ARM_1_K_I, ARM_1_K_D, 60));
+	set(MOTOR_ARM_2, pid_control(get(MOTOR_ARM_2), -(th_2 - PI / 2), ARM_2_ID, ARM_2_K_P, ARM_2_K_I, ARM_2_K_D, 60));
+	set(MOTOR_ARM_3, pid_control(get(MOTOR_ARM_3), -(th_3 - PI / 4), ARM_3_ID, ARM_3_K_P, ARM_3_K_I, ARM_3_K_D, 60));
+	set(MOTOR_ARM_H, pid_control(get(MOTOR_ARM_H), arm_h_angle, ARM_H_ID, ARM_H_K_P, ARM_H_K_I, ARM_H_K_D, 60));
+	set(MOTOR_ARM_L, pid_control(get(MOTOR_ARM_L), arm_angle, ARM_ID, ARM_K_P, ARM_K_I, ARM_K_D, 60));
+	set(MOTOR_ARM_R, pid_control(get(MOTOR_ARM_R), (0 - arm_angle), ARM_ID, ARM_K_P, ARM_K_I, ARM_K_D, 60));
+
+	if (is_debug_enabled) {
+		if (dump_wait == 0){
+			// dump_pid_table();
+			dump_thetas(h_diff, th_1, th_2, th_3);
+			dump_wait = 60;
+		}
+	}
+	if (dump_wait > 0) {
+		dump_wait = dump_wait - 1;
+	}
+}
