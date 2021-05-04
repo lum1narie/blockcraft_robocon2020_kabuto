@@ -1,0 +1,46 @@
+float MOTOR_LF = MOTOR_0;
+float MOTOR_LB = MOTOR_4;
+float MOTOR_RF = MOTOR_1;
+float MOTOR_RB = MOTOR_3;
+float MOTOR_F = MOTOR_2;
+float SPEED = 11;
+float main() {
+	float speedFly = 0.0;
+	float speedLeft = 0.0;
+	float speedRight = 0.0;
+	if (key(KEY_W)) {
+		speedLeft = (speedLeft + 1.0);
+		speedRight = (speedRight + 1.0);
+		speedFly = 10.0;
+	}
+	if (key(KEY_S)) {
+		speedLeft = (speedLeft - 1.0);
+		speedRight = (speedRight - 1.0);
+		speedFly = -10.0;
+	}
+	if (key(KEY_A)) {
+		speedLeft = (speedLeft - 0.75);
+		speedRight = (speedRight + 0.75);
+	}
+	if (key(KEY_D)) {
+		speedLeft = (speedLeft + 0.75);
+		speedRight = (speedRight - 0.75);
+	}
+	if (key(KEY_SPACE)) {
+		speedLeft = (speedLeft * 2);
+		speedRight = (speedRight * 2);
+	}
+	if (key(KEY_LEFT_SHIFT)) {
+		speedLeft = (speedLeft * 0.5);
+		speedRight = (speedRight * 0.5);
+	}
+	if (key(KEY_E)) {
+		speedLeft = 0.0;
+		speedRight = 0.0;
+	}
+	set(MOTOR_LF, (speedLeft * SPEED));
+	set(MOTOR_LB, (speedLeft * SPEED));
+	set(MOTOR_RF, (0.0 - (speedRight * SPEED)));
+	set(MOTOR_RB, (0.0 - (speedRight * SPEED)));
+	set(MOTOR_F, speedFly);
+}
