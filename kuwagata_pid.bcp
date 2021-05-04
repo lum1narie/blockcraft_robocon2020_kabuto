@@ -82,6 +82,14 @@ float val_move(float val, float move, float min, float max, float tick_n, float 
 	return retv;
 }
 
+float not(float n) {
+	if (n) {
+		return 0;
+	} else {
+		return 1;
+	}
+}
+
 float arm_v_angle = (ARM_V_INIT + ARM_V_DELTA);
 float arm_h_angle = (ARM_H_INIT + ARM_H_DELTA);
 float arm_angle = ARM_ANGLE_OFF;
@@ -136,11 +144,7 @@ float main() {
 		init_pid(ARM_H_ID);
 	}
 	if (keyDown(KEY_SPACE)) {
-		if (is_arm_close) {
-			is_arm_close = 0;
-		} else {
-			is_arm_close = 1;
-		}
+		is_arm_close = not(is_arm_close);
 	}
 
 	if (is_arm_close) {
