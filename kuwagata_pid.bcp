@@ -82,6 +82,15 @@ float val_move(float val, float move, float min, float max, float tick_n, float 
 	return retv;
 }
 
+float dump_pid_table() {
+	float i = 0;
+	while (i < 2 * PID_N) {
+		print(pid_table[i]);
+		i = i + 1;
+	}
+	print(10000000);
+}
+
 float not(float n) {
 	if (n) {
 		return 0;
@@ -94,6 +103,8 @@ float arm_v_angle = (ARM_V_INIT + ARM_V_DELTA);
 float arm_h_angle = (ARM_H_INIT + ARM_H_DELTA);
 float arm_angle = ARM_ANGLE_OFF;
 float is_arm_close = 0;
+float is_debug_enabled = 0;
+float dump_wait = 0;
 
 float is_init = 1;
 float init() {
@@ -146,6 +157,9 @@ float main() {
 	if (keyDown(KEY_SPACE)) {
 		is_arm_close = not(is_arm_close);
 	}
+	if (keyDown(KEY_E)) {
+		is_debug_enabled = not(is_debug_enabled);
+	}
 
 	if (is_arm_close) {
 		arm_angle = ARM_ANGLE_ON;
@@ -161,4 +175,14 @@ float main() {
 	set(MOTOR_ARM_H, pid_control(get(MOTOR_ARM_H), arm_h_angle, ARM_H_ID, ARM_H_K_P, ARM_H_K_I, ARM_H_K_D, 60));
 	set(MOTOR_ARM_L, pid_control(get(MOTOR_ARM_L), arm_angle, ARM_ID, ARM_K_P, ARM_K_I, ARM_K_D, 60));
 	set(MOTOR_ARM_R, pid_control(get(MOTOR_ARM_R), (0 - arm_angle), ARM_ID, ARM_K_P, ARM_K_I, ARM_K_D, 60));
+
+	if (is_debug_enabled) {
+		if (dump_wait == 0){
+			dump_pid_table();
+			dump_wait = 60;
+		}
+	}
+	if (dump_wait > 0) {
+		dump_wait = dump_wait - 1;
+	}
 }
