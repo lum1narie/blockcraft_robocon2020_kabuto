@@ -1,0 +1,184 @@
+float PI = 3.14159265358;
+
+float SPEED = 20;
+
+float ARM_V_INIT = 0.0;
+float ARM_H_INIT = 0.0;
+float ARM_V_LIMIT_L = (0 - (PI / 6));
+float ARM_V_LIMIT_H = (PI / 2);
+float ARM_H_LIMIT = (PI / 8);
+float ARM_ANGLE_OFF = (0 - (PI / 4));
+float ARM_ANGLE_ON = (PI / 5);
+
+float ARM_V_K_P = 30;
+float ARM_V_K_I = 10;
+float ARM_V_K_D = 2.5;
+float ARM_H_K_P = 30;
+float ARM_H_K_I = 0.6;
+float ARM_H_K_D = 0.15;
+float ARM_K_P = 10;
+float ARM_K_I = 0.4;
+float ARM_K_D = 0.1;
+
+float PID_N = 3;
+float ARM_H_ID = 0;
+float ARM_V_ID = 1;
+float ARM_ID = 2;
+float pid_table[2 * PID_N];
+
+float MOTOR_RF = MOTOR_0;
+float MOTOR_LF = MOTOR_1;
+float MOTOR_RB = MOTOR_2;
+float MOTOR_LB = MOTOR_3;
+float MOTOR_ARM_V = MOTOR_4;
+float MOTOR_ARM_H = MOTOR_5;
+float MOTOR_ARM_L = MOTOR_7;
+float MOTOR_ARM_R = MOTOR_6;
+
+float p_control(float val, float target, float k) {
+	return (k * (target - val));
+}
+
+float pid_control(float val, float target, float id, float k_p, float k_i, float k_d, float framerate) {
+	float last_i = id * 2;
+	float sum_i = id * 2 + 1;
+
+	float diff = target - val;
+	pid_table[sum_i] = pid_table[sum_i] + diff / framerate;
+
+	float retv = k_p * diff + k_i * pid_table[sum_i] + k_d * (diff - pid_table[last_i]) * framerate;
+	pid_table[last_i] = diff;
+
+	return retv;
+}
+
+float init_pid(float id){
+	float last_i = id * 2;
+	float sum_i = id * 2 + 1;
+
+	pid_table[last_i] = 0;
+	pid_table[sum_i] = 0;
+
+	return 0;
+}
+
+float val_move(float val, float move, float min, float max, float tick_n) {
+	float tick = ((max - min) / tick_n);
+
+	val = (val + (move * tick));
+
+	if ((max < val)) {
+		val = max;
+	} else {
+		if ((val < min)) {
+			val = min;
+		}
+	}
+
+	return val;
+}
+
+float dump_pid_table() {
+	float i = 0;
+	while (i < 2 * PID_N) {
+		print(pid_table[i]);
+		i = i + 1;
+	}
+	print(10000000);
+}
+
+float not(float n) {
+	if (n) {
+		return 0;
+	} else {
+		return 1;
+	}
+}
+
+float arm_v_angle = ARM_V_INIT;
+float arm_h_angle = ARM_H_INIT;
+float arm_angle = ARM_ANGLE_OFF;
+float is_arm_close = 0;
+float is_debug_enabled = 0;
+float dump_wait = 0;
+
+float is_init = 1;
+float init() {
+	init_pid(ARM_V_ID);
+	init_pid(ARM_H_ID);
+	init_pid(ARM_ID);
+}
+
+float main() {
+	if (is_init) {
+		init();
+		is_init = 0;
+	}
+
+	float left_pow = 0.0;
+	float right_pow = 0.0;
+
+	if (key(KEY_W)) {
+		left_pow = 1;
+		right_pow = 1;
+	}
+	if (key(KEY_S)) {
+		left_pow = -1;
+		right_pow = -1;
+	}
+	if (key(KEY_A)) {
+		left_pow = -0.5;
+		right_pow = 1;
+	}
+	if (key(KEY_D)) {
+		left_pow = 1;
+		right_pow = -0.5;
+	}
+	if (key(KEY_UP)) {
+		arm_v_angle = val_move(arm_v_angle, 1, ARM_V_LIMIT_L, ARM_V_LIMIT_H, 50);
+		init_pid(ARM_V_ID);
+	}
+	if (key(KEY_DOWN)) {
+		arm_v_angle = val_move(arm_v_angle, -1, ARM_V_LIMIT_L, ARM_V_LIMIT_H, 50);
+		init_pid(ARM_V_ID);
+	}
+	if (key(KEY_LEFT)) {
+		arm_h_angle = val_move(arm_h_angle, -1, (0 - ARM_H_LIMIT), ARM_H_LIMIT, 50);
+		init_pid(ARM_H_ID);
+	}
+	if (key(KEY_RIGHT)) {
+		arm_h_angle = val_move(arm_h_angle, 1, (0 - ARM_H_LIMIT), ARM_H_LIMIT, 50);
+		init_pid(ARM_H_ID);
+	}
+	if (keyDown(KEY_SPACE)) {
+		is_arm_close = not(is_arm_close);
+	}
+	if (keyDown(KEY_E)) {
+		is_debug_enabled = not(is_debug_enabled);
+	}
+
+	if (is_arm_close) {
+		arm_angle = ARM_ANGLE_ON;
+	} else {
+		arm_angle = ARM_ANGLE_OFF;
+	}
+
+	set(MOTOR_LF, (SPEED * left_pow));
+	set(MOTOR_LB, (SPEED * left_pow));
+	set(MOTOR_RF, (0 - (SPEED * right_pow)));
+	set(MOTOR_RB, (0 - (SPEED * right_pow)));
+	set(MOTOR_ARM_V, pid_control(get(MOTOR_ARM_V), arm_v_angle, ARM_V_ID, ARM_V_K_P, ARM_V_K_I, ARM_V_K_D, 60));
+	set(MOTOR_ARM_H, pid_control(get(MOTOR_ARM_H), arm_h_angle, ARM_H_ID, ARM_H_K_P, ARM_H_K_I, ARM_H_K_D, 60));
+	set(MOTOR_ARM_L, pid_control(get(MOTOR_ARM_L), arm_angle, ARM_ID, ARM_K_P, ARM_K_I, ARM_K_D, 60));
+	set(MOTOR_ARM_R, pid_control(get(MOTOR_ARM_R), (0 - arm_angle), ARM_ID, ARM_K_P, ARM_K_I, ARM_K_D, 60));
+
+	if (is_debug_enabled) {
+		if (dump_wait == 0){
+			dump_pid_table();
+			dump_wait = 60;
+		}
+	}
+	if (dump_wait > 0) {
+		dump_wait = dump_wait - 1;
+	}
+}
