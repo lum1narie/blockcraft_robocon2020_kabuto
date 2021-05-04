@@ -1,6 +1,6 @@
 float PI = 3.14159265358;
 
-float SPEED = 20;
+float SPEED = 10;
 
 float ARM_V_INIT = 0.0;
 float ARM_H_INIT = 0.0;
@@ -19,11 +19,15 @@ float ARM_H_K_D = 0.15;
 float ARM_K_P = 10;
 float ARM_K_I = 0.4;
 float ARM_K_D = 0.1;
+float LINETRACE_K_P = 1.00;
+float LINETRACE_K_I = 0.00;
+float LINETRACE_K_D = 0.01;
 
-float PID_N = 3;
+float PID_N = 4;
 float ARM_H_ID = 0;
 float ARM_V_ID = 1;
 float ARM_ID = 2;
+float LINETRACE_ID = 3;
 float pid_table[2 * PID_N];
 
 float MOTOR_RF = MOTOR_0;
@@ -36,11 +40,12 @@ float MOTOR_ARM_L = MOTOR_7;
 float MOTOR_ARM_R = MOTOR_6;
 
 float SEIKA_ARM_SENSOR_THRESHOLD = 3.0;
-float ARM_GRAB_RAISE_WAIT_SEC = 1.0;
+float ARM_GRAB_RAISE_WAIT_SEC = 0.3;
 float ARM_HOLD_V_ANGLE = PI / 4;
+float WHITE_DOWN_SENSOR_THRESHOLD = 15.0;
 
 float SENSOR_FRONT_N = 6;
-float SENSOR_REAR_N = 2;
+float SENSOR_REAR_N = 6;
 float SENSOR_ARM_N = 2;
 float SENSOR_FRONT_ARRAY[SENSOR_FRONT_N];
 float SENSOR_REAR_ARRAY[SENSOR_REAR_N];
@@ -127,6 +132,14 @@ float not(float n) {
 	}
 }
 
+float abs(float n) {
+	if (n > 0) {
+		return n;
+	} else {
+		return n;
+	}
+}
+
 float arm_v_angle = ARM_V_INIT;
 float arm_h_angle = ARM_H_INIT;
 float arm_angle = ARM_ANGLE_OFF;
@@ -138,9 +151,17 @@ float right_pow = 0.0;
 
 float is_init = 1;
 float init() {
+
 	init_pid(ARM_V_ID);
 	init_pid(ARM_H_ID);
 	init_pid(ARM_ID);
+
+	left_pow = 0.0;
+	right_pow = 0.0;
+	arm_v_angle = ARM_V_INIT;
+	arm_h_angle = ARM_H_INIT;
+	arm_angle = ARM_ANGLE_OFF;
+	is_arm_close = 0;
 
 	SENSOR_FRONT_ARRAY[0] = SENSOR_0;
 	SENSOR_FRONT_ARRAY[1] = SENSOR_1;
@@ -148,10 +169,14 @@ float init() {
 	SENSOR_FRONT_ARRAY[3] = SENSOR_3;
 	SENSOR_FRONT_ARRAY[4] = SENSOR_4;
 	SENSOR_FRONT_ARRAY[5] = SENSOR_5;
-	SENSOR_REAR_ARRAY[0] = SENSOR_6;
-	SENSOR_REAR_ARRAY[1] = SENSOR_7;
-	SENSOR_ARM_ARRAY[0] = SENSOR_8;
-	SENSOR_ARM_ARRAY[1] = SENSOR_9;
+	SENSOR_ARM_ARRAY[0] = SENSOR_6;
+	SENSOR_ARM_ARRAY[1] = SENSOR_7;
+	SENSOR_REAR_ARRAY[0] = SENSOR_8;
+	SENSOR_REAR_ARRAY[1] = SENSOR_9;
+	SENSOR_REAR_ARRAY[2] = SENSOR_10;
+	SENSOR_REAR_ARRAY[3] = SENSOR_11;
+	SENSOR_REAR_ARRAY[4] = SENSOR_12;
+	SENSOR_REAR_ARRAY[5] = SENSOR_13;
 }
 
 float control_machine() {
@@ -170,12 +195,50 @@ float control_machine() {
 	set(MOTOR_ARM_R, pid_control(get(MOTOR_ARM_R), (0 - arm_angle), ARM_ID, ARM_K_P, ARM_K_I, ARM_K_D, 60));
 }
 
+float last_val = 0;
+float line_trace() {
+	float sensor_mid = ((SENSOR_FRONT_N) - 1) / 2;
+	float val = 0;
+
+	float found_white_n = 0;
+
+	float i = 0;
+	while (i < SENSOR_FRONT_N) {
+		if (get(SENSOR_FRONT_ARRAY[i]) > WHITE_DOWN_SENSOR_THRESHOLD) {
+			val = val + i - sensor_mid;
+			found_white_n = found_white_n + 1;
+		}
+
+		i = i + 1;
+	}
+
+	if (found_white_n == 0) {
+		val = last_val;
+	} else {
+		last_val = val;
+	}
+
+	float mov = pid_control(val, 0, LINETRACE_ID, LINETRACE_K_P, LINETRACE_K_I, LINETRACE_K_D, 60);
+	left_pow = 1 - mov;
+	right_pow = 1 + mov;
+
+	float spd = 1 - val / 8;
+	if (spd < 0.3) {
+		spd = 0.3;
+	}
+	float k = 2 / (abs(left_pow) + abs(right_pow)) * spd;
+		left_pow = left_pow * k;
+		right_pow = right_pow * k;
+
+	return found_white_n == 0;
+}
+
 float operation_dock() {
 	left_pow = 0.0;
 	right_pow = 0.0;
 	if (key(KEY_SPACE)) {
 		state = STATE_START;
-		print(1);
+		print(STATE_START);
 		return 0;
 	}
 
@@ -204,8 +267,7 @@ float operation_before_grab() {
 		state_start_init = 1;
 	}
 
-	left_pow = 1;
-	right_pow = 1;
+	line_trace();
 
 	float is_seika_found = 0;
 	float i = 0;
@@ -217,15 +279,14 @@ float operation_before_grab() {
 	}
 
 	if (is_seika_found) {
-		print(2);
+		print(STATE_GRAB);
 		state = STATE_GRAB;
 	}
 }
 
 float count_on_grab = 0;
 float operation_grab() {
-	left_pow = 1;
-	right_pow = 1;
+	line_trace();
 
 	if (count_on_grab == 0) {
 		is_arm_close = 1;
@@ -233,11 +294,15 @@ float operation_grab() {
 	count_on_grab = count_on_grab + 1;
 	if (count_on_grab > 60 * ARM_GRAB_RAISE_WAIT_SEC) {
 		arm_v_angle = ARM_HOLD_V_ANGLE;
+		print(STATE_RUN);
+		state = STATE_RUN;
 	}
 }
-float operation_running() {
 
+float operation_running() {
+	line_trace();
 }
+
 float operation_placing() {
 
 }
@@ -281,7 +346,7 @@ float main() {
 		is_debug_enabled = not(is_debug_enabled);
 	}
 	if (keyDown(KEY_R)) {
-		print(0);
+		print(STATE_DOCK);
 		init();
 		state = STATE_DOCK;
 	}
@@ -289,7 +354,8 @@ float main() {
 	if (is_debug_enabled) {
 		if (dump_wait == 0){
 			// dump_pid_table();
-			dump_sensors();
+			print(last_val);
+			// dump_sensors();
 			dump_wait = 60;
 		}
 	}
