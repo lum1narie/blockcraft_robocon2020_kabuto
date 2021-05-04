@@ -2,8 +2,6 @@ float PI = 3.14159265358;
 
 float SPEED = 20;
 
-float ARM_V_DELTA = (PI / 12);
-float ARM_H_DELTA = 0.0;
 float ARM_V_INIT = 0.0;
 float ARM_H_INIT = 0.0;
 float ARM_V_LIMIT_L = (0 - (PI / 6));
@@ -64,22 +62,20 @@ float init_pid(float id){
 	return 0;
 }
 
-float val_move(float val, float move, float min, float max, float tick_n, float delta) {
+float val_move(float val, float move, float min, float max, float tick_n) {
 	float tick = ((max - min) / tick_n);
-	float retv = (val - delta);
 
-	retv = (retv + (move * tick));
+	val = (val + (move * tick));
 
-	if ((max < retv)) {
-		retv = max;
+	if ((max < val)) {
+		val = max;
 	} else {
-		if ((retv < min)) {
-			retv = min;
+		if ((val < min)) {
+			val = min;
 		}
 	}
 
-	retv = (retv + delta);
-	return retv;
+	return val;
 }
 
 float dump_pid_table() {
@@ -99,8 +95,8 @@ float not(float n) {
 	}
 }
 
-float arm_v_angle = (ARM_V_INIT + ARM_V_DELTA);
-float arm_h_angle = (ARM_H_INIT + ARM_H_DELTA);
+float arm_v_angle = ARM_V_INIT;
+float arm_h_angle = ARM_H_INIT;
 float arm_angle = ARM_ANGLE_OFF;
 float is_arm_close = 0;
 float is_debug_enabled = 0;
@@ -139,19 +135,19 @@ float main() {
 		right_pow = -0.5;
 	}
 	if (key(KEY_UP)) {
-		arm_v_angle = val_move(arm_v_angle, 1, ARM_V_LIMIT_L, ARM_V_LIMIT_H, 50, ARM_V_DELTA);
+		arm_v_angle = val_move(arm_v_angle, 1, ARM_V_LIMIT_L, ARM_V_LIMIT_H, 50);
 		init_pid(ARM_V_ID);
 	}
 	if (key(KEY_DOWN)) {
-		arm_v_angle = val_move(arm_v_angle, -1, ARM_V_LIMIT_L, ARM_V_LIMIT_H, 50, ARM_V_DELTA);
+		arm_v_angle = val_move(arm_v_angle, -1, ARM_V_LIMIT_L, ARM_V_LIMIT_H, 50);
 		init_pid(ARM_V_ID);
 	}
 	if (key(KEY_LEFT)) {
-		arm_h_angle = val_move(arm_h_angle, -1, (0 - ARM_H_LIMIT), ARM_H_LIMIT, 50, ARM_H_DELTA);
+		arm_h_angle = val_move(arm_h_angle, -1, (0 - ARM_H_LIMIT), ARM_H_LIMIT, 50);
 		init_pid(ARM_H_ID);
 	}
 	if (key(KEY_RIGHT)) {
-		arm_h_angle = val_move(arm_h_angle, 1, (0 - ARM_H_LIMIT), ARM_H_LIMIT, 50, ARM_H_DELTA);
+		arm_h_angle = val_move(arm_h_angle, 1, (0 - ARM_H_LIMIT), ARM_H_LIMIT, 50);
 		init_pid(ARM_H_ID);
 	}
 	if (keyDown(KEY_SPACE)) {
