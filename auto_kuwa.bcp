@@ -1,6 +1,6 @@
 float PI = 3.14159265358;
 
-float SPEED = 10;
+float SPEED = 5;
 
 float ARM_V_INIT = 0.0;
 float ARM_H_INIT = 0.0;
@@ -30,6 +30,8 @@ float ARM_ID = 2;
 float LINETRACE_ID = 3;
 float pid_table[2 * PID_N];
 
+float LINETRACE_THRESHOLD = 17;
+
 float MOTOR_RF = MOTOR_0;
 float MOTOR_LF = MOTOR_1;
 float MOTOR_RB = MOTOR_2;
@@ -44,8 +46,8 @@ float ARM_GRAB_RAISE_WAIT_SEC = 0.3;
 float ARM_HOLD_V_ANGLE = PI / 4;
 float WHITE_DOWN_SENSOR_THRESHOLD = 15.0;
 
-float SENSOR_FRONT_N = 6;
-float SENSOR_REAR_N = 6;
+float SENSOR_FRONT_N = 3;
+float SENSOR_REAR_N = 3;
 float SENSOR_ARM_N = 2;
 float SENSOR_FRONT_ARRAY[SENSOR_FRONT_N];
 float SENSOR_REAR_ARRAY[SENSOR_REAR_N];
@@ -119,8 +121,6 @@ float dump_sensors() {
 	print(get(SENSOR_5));
 	print(get(SENSOR_6));
 	print(get(SENSOR_7));
-	print(get(SENSOR_8));
-	print(get(SENSOR_9));
 	print();
 }
 
@@ -166,17 +166,11 @@ float init() {
 	SENSOR_FRONT_ARRAY[0] = SENSOR_0;
 	SENSOR_FRONT_ARRAY[1] = SENSOR_1;
 	SENSOR_FRONT_ARRAY[2] = SENSOR_2;
-	SENSOR_FRONT_ARRAY[3] = SENSOR_3;
-	SENSOR_FRONT_ARRAY[4] = SENSOR_4;
-	SENSOR_FRONT_ARRAY[5] = SENSOR_5;
 	SENSOR_ARM_ARRAY[0] = SENSOR_6;
 	SENSOR_ARM_ARRAY[1] = SENSOR_7;
-	SENSOR_REAR_ARRAY[0] = SENSOR_8;
-	SENSOR_REAR_ARRAY[1] = SENSOR_9;
-	SENSOR_REAR_ARRAY[2] = SENSOR_10;
-	SENSOR_REAR_ARRAY[3] = SENSOR_11;
-	SENSOR_REAR_ARRAY[4] = SENSOR_12;
-	SENSOR_REAR_ARRAY[5] = SENSOR_13;
+	SENSOR_REAR_ARRAY[0] = SENSOR_3;
+	SENSOR_REAR_ARRAY[1] = SENSOR_4;
+	SENSOR_REAR_ARRAY[2] = SENSOR_5;
 }
 
 float control_machine() {
@@ -195,42 +189,46 @@ float control_machine() {
 	set(MOTOR_ARM_R, pid_control(get(MOTOR_ARM_R), (0 - arm_angle), ARM_ID, ARM_K_P, ARM_K_I, ARM_K_D, 60));
 }
 
-float last_val = 0;
+float lv = 0;
+float rv = 0;
+float cv = 0;
 float line_trace() {
-	float sensor_mid = ((SENSOR_FRONT_N) - 1) / 2;
-	float val = 0;
+	left_pow = 0;
+	right_pow = 0;
 
-	float found_white_n = 0;
+	lv = ((lv * 0.5) + (get(SENSOR_FRONT_ARRAY[0]) * 0.5));
+	rv = ((rv * 0.5) + (get(SENSOR_FRONT_ARRAY[2]) * 0.5));
+	cv = ((cv * 0.5) + (get(SENSOR_FRONT_ARRAY[1]) * 0.5));
+	print(lv);
+	print(cv);
+	print(rv);
+	print();
 
-	float i = 0;
-	while (i < SENSOR_FRONT_N) {
-		if (get(SENSOR_FRONT_ARRAY[i]) > WHITE_DOWN_SENSOR_THRESHOLD) {
-			val = val + i - sensor_mid;
-			found_white_n = found_white_n + 1;
-		}
+	float left = (lv > LINETRACE_THRESHOLD);
+	float right = (rv > LINETRACE_THRESHOLD);
+	float center = (cv > LINETRACE_THRESHOLD);
 
-		i = i + 1;
-	}
-
-	if (found_white_n == 0) {
-		val = last_val;
+	if (center) {
+		right_pow = (right_pow + 0.5);
+		left_pow = (left_pow + 0.5);
 	} else {
-		last_val = val;
+		right_pow = (right_pow - 1);
+		left_pow = (left_pow - 1);
 	}
-
-	float mov = pid_control(val, 0, LINETRACE_ID, LINETRACE_K_P, LINETRACE_K_I, LINETRACE_K_D, 60);
-	left_pow = 1 - mov;
-	right_pow = 1 + mov;
-
-	float spd = 1 - val / 8;
-	if (spd < 0.3) {
-		spd = 0.3;
+	if ((!left && right)) {
+		right_pow = (right_pow - 1.25);
+		left_pow = (left_pow + 0.75);
+	} else {
+		if ((left && !right)) {
+			right_pow = (right_pow + 0.75);
+			left_pow = (left_pow - 1.25);
+		} else {
+			if ((!left && !right)) {
+				right_pow = (right_pow + 0.5);
+				left_pow = (left_pow + 0.5);
+			}
+		}
 	}
-	float k = 2 / (abs(left_pow) + abs(right_pow)) * spd;
-		left_pow = left_pow * k;
-		right_pow = right_pow * k;
-
-	return found_white_n == 0;
 }
 
 float operation_dock() {
@@ -373,8 +371,7 @@ float main() {
 	if (is_debug_enabled) {
 		if (dump_wait == 0){
 			// dump_pid_table();
-			print(last_val);
-			// dump_sensors();
+			dump_sensors();
 			dump_wait = 60;
 		}
 	}
