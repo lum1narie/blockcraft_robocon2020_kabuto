@@ -1,0 +1,107 @@
+float PI = 3.14159265358;
+float SPEED = 20;
+float ARM_V_DELTA = PI / 12;
+float ARM_H_DELTA = 0.0;
+float ARM_V_INIT = 0.0;
+float ARM_H_INIT = 0.0;
+float ARM_V_LIMIT_L = (0 - (PI / 6));
+float ARM_V_LIMIT_H = (PI / 2);
+float ARM_H_LIMIT = (PI / 8);
+float ARM_OFF = (0 - (PI / 4));
+float ARM_ON = (PI / 5);
+float ARM_V_OFF_K = 15;
+float ARM_H_OFF_K = 5;
+float ARM_OFF_K = 10;
+float ARM_V_ON_K = 45;
+float ARM_H_ON_K = 15;
+float ARM_ON_K = 15;
+float MOTOR_RF = MOTOR_0;
+float MOTOR_LF = MOTOR_1;
+float MOTOR_RB = MOTOR_2;
+float MOTOR_LB = MOTOR_3;
+float MOTOR_ARM_V = MOTOR_4;
+float MOTOR_ARM_H = MOTOR_5;
+float MOTOR_ARM_L = MOTOR_7;
+float MOTOR_ARM_R = MOTOR_6;
+float p_control(float val, float target, float k) {
+	return (k * (target - val));
+}
+float val_move(float val, float move, float min, float max, float tick_n, float delta) {
+	float tick = ((max - min) / tick_n);
+	float retv = (val - delta);
+	retv = (retv + (move * tick));
+	if ((max < retv)) {
+		retv = max;
+	} else {
+		if ((retv < min)) {
+			retv = min;
+		}
+	}
+	retv = (retv + delta);
+	return retv;
+}
+float arm_v_angle = ARM_V_INIT + ARM_V_DELTA;
+float arm_h_angle = ARM_H_INIT + ARM_H_DELTA;
+float arm_angle = ARM_OFF;
+float arm_v_k = 0.0;
+float arm_h_k = 0.0;
+float arm_k = 0.0;
+float is_arm_close = 0;
+float main() {
+	float left_pow = 0.0;
+	float right_pow = 0.0;
+	if (key(KEY_W)) {
+		left_pow = 1;
+		right_pow = 1;
+	}
+	if (key(KEY_S)) {
+		left_pow = -1;
+		right_pow = -1;
+	}
+	if (key(KEY_A)) {
+		left_pow = -0.5;
+		right_pow = 1;
+	}
+	if (key(KEY_D)) {
+		left_pow = 1;
+		right_pow = -0.5;
+	}
+	if (key(KEY_UP)) {
+		arm_v_angle = val_move(arm_v_angle, 1, ARM_V_LIMIT_L, ARM_V_LIMIT_H, 50, ARM_V_DELTA);
+	}
+	if (key(KEY_DOWN)) {
+		arm_v_angle = val_move(arm_v_angle, -1, ARM_V_LIMIT_L, ARM_V_LIMIT_H, 50, ARM_V_DELTA);
+	}
+	if (key(KEY_LEFT)) {
+		arm_h_angle = val_move(arm_h_angle, -1, (0 - ARM_H_LIMIT), ARM_H_LIMIT, 50, ARM_H_DELTA);
+	}
+	if (key(KEY_RIGHT)) {
+		arm_h_angle = val_move(arm_h_angle, 1, (0 - ARM_H_LIMIT), ARM_H_LIMIT, 50, ARM_H_DELTA);
+	}
+	if (keyDown(KEY_SPACE)) {
+		if (is_arm_close) {
+			is_arm_close = 0;
+		} else {
+			is_arm_close = 1;
+		}
+	}
+	if (is_arm_close) {
+		arm_angle = ARM_ON;
+		arm_v_k = ARM_V_ON_K;
+		arm_h_k = ARM_H_ON_K;
+		arm_k = ARM_ON_K;
+	} else {
+		arm_angle = ARM_OFF;
+		arm_v_k = ARM_V_OFF_K;
+		arm_h_k = ARM_H_OFF_K;
+		arm_k = ARM_OFF_K;
+	}
+	set(MOTOR_LF, (SPEED * left_pow));
+	set(MOTOR_LB, (SPEED * left_pow));
+	set(MOTOR_RF, (0 - (SPEED * right_pow)));
+	set(MOTOR_RB, (0 - (SPEED * right_pow)));
+	set(MOTOR_ARM_V, p_control(get(MOTOR_ARM_V), arm_v_angle, arm_v_k));
+	set(MOTOR_ARM_H, p_control(get(MOTOR_ARM_H), arm_h_angle, arm_h_k));
+	set(MOTOR_ARM_L, p_control(get(MOTOR_ARM_L), arm_angle, arm_k));
+	set(MOTOR_ARM_R, p_control(get(MOTOR_ARM_R), (0 - arm_angle), arm_k));
+}
