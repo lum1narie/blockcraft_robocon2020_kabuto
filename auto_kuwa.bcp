@@ -326,6 +326,16 @@ float operation_running() {
 	}
 }
 
+float on_debug_run_count = 0;
+float debug_running() {
+	float l = line_trace();
+	if (if_passed_endline() || on_debug_run_count > 120) {
+		print(STATE_PLACE);
+		state = STATE_PLACE;
+	}
+	on_debug_run_count = on_debug_run_count + 1;
+}
+
 float count_on_placing = 0;
 float operation_placing() {
 	if (count_on_placing < 10) {
