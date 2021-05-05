@@ -1,6 +1,6 @@
 float COLOR_RED = 1;
 float COLOR_BLUE = 2;
-float TEAM_COLOR = 0;
+float TEAM_COLOR = COLOR_BLUE;
 
 float PI = 3.14159265358;
 float MOTOR_LF = MOTOR_1;
@@ -18,8 +18,10 @@ float armWidth = 0.0;
 
 float ARM_ANGLE_OFF = (PI / 4);
 float ARM_ANGLE_ON = -(PI / 5);
-float ARM_UP_MAX = PI / 2;
+float ARM_UP_MAX = PI / 3;
 float ARM_UP_MIN = -PI / 8;
+
+float ARM_UP_TICK = 10;
 
 float ARM_V_K_P = 30;
 float ARM_V_K_I = 10;
@@ -47,6 +49,22 @@ float pid_control(float val, float target, float id, float k_p, float k_i, float
 	return retv;
 }
 
+float val_move(float val, float move, float min, float max, float tick_n) {
+	float tick = ((max - min) / tick_n);
+
+	val = (val + (move * tick));
+
+	if ((max < val)) {
+		val = max;
+	} else {
+		if ((val < min)) {
+			val = min;
+		}
+	}
+
+	return val;
+}
+
 float init_pid(float id){
 	float last_i = id * 2;
 	float sum_i = id * 2 + 1;
@@ -65,8 +83,7 @@ float not(float n) {
 	}
 }
 
-float is_arm_close = 0;
-
+float is_arm_close = 1;
 float color_init(float color) {
 	if (color == COLOR_RED) {
 		__setColor(2);
@@ -118,35 +135,17 @@ float main() {
 		speedRight = (speedRight * 0.5);
 	}
 	if (key(KEY_UP)) {
-		armUp = (armUp + 0.05);
+		armUp = val_move(armUp, 1, ARM_UP_MIN, ARM_UP_MAX, ARM_UP_TICK);
 		init_pid(ARM_V_ID);
 	}
 	if (key(KEY_DOWN)) {
-		armUp = (armUp - 0.05);
+		armUp = val_move(armUp, -1, ARM_UP_MIN, ARM_UP_MAX, ARM_UP_TICK);
 		init_pid(ARM_V_ID);
 	}
 	if (keyDown(KEY_Q)) {
 		is_arm_close = not(is_arm_close);
 		init_pid(ARM_L_ID);
 		init_pid(ARM_R_ID);
-	}
-	if (key(KEY_LEFT)) {
-		armWidth = armWidth + 0.05;
-		init_pid(ARM_L_ID);
-		init_pid(ARM_R_ID);
-	}
-	if (key(KEY_RIGHT)) {
-		armWidth = armWidth - 0.05;
-		init_pid(ARM_L_ID);
-		init_pid(ARM_R_ID);
-	}
-	if ((armUp < ARM_UP_MIN)) {
-		armUp = ARM_UP_MIN;
-		init_pid(ARM_V_ID);
-	}
-	if ((ARM_UP_MAX < armUp)) {
-		armUp = ARM_UP_MAX;
-		init_pid(ARM_V_ID);
 	}
 	if (is_arm_close) {
 		armWidth = ARM_ANGLE_ON;
