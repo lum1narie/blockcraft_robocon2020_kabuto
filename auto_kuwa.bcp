@@ -27,11 +27,12 @@ float LINETRACE_K_P = 1.00;
 float LINETRACE_K_I = 0.00;
 float LINETRACE_K_D = 0.01;
 
-float PID_N = 4;
+float PID_N = 5;
 float ARM_H_ID = 0;
 float ARM_V_ID = 1;
-float ARM_ID = 2;
-float LINETRACE_ID = 3;
+float ARM_L_ID = 2;
+float ARM_R_ID = 3;
+float LINETRACE_ID = 4;
 float pid_table[2 * PID_N];
 
 float LINETRACE_THRESHOLD = 17;
@@ -178,8 +179,8 @@ float control_machine() {
 	set(MOTOR_RB, (0 - (SPEED * right_pow)));
 	set(MOTOR_ARM_V, pid_control(get(MOTOR_ARM_V), arm_v_angle, ARM_V_ID, ARM_V_K_P, ARM_V_K_I, ARM_V_K_D, 60));
 	set(MOTOR_ARM_H, pid_control(get(MOTOR_ARM_H), arm_h_angle, ARM_H_ID, ARM_H_K_P, ARM_H_K_I, ARM_H_K_D, 60));
-	set(MOTOR_ARM_L, pid_control(get(MOTOR_ARM_L), arm_angle, ARM_ID, ARM_K_P, ARM_K_I, ARM_K_D, 60));
-	set(MOTOR_ARM_R, pid_control(get(MOTOR_ARM_R), (0 - arm_angle), ARM_ID, ARM_K_P, ARM_K_I, ARM_K_D, 60));
+	set(MOTOR_ARM_L, pid_control(get(MOTOR_ARM_L), arm_angle, ARM_L_ID, ARM_K_P, ARM_K_I, ARM_K_D, 60));
+	set(MOTOR_ARM_R, pid_control(get(MOTOR_ARM_R), (0 - arm_angle), ARM_R_ID, ARM_K_P, ARM_K_I, ARM_K_D, 60));
 }
 
 float lv = 0;
@@ -285,7 +286,8 @@ float operation_dock() {
 	}
 	if (keyDown(KEY_Q)) {
 		is_arm_close = not(is_arm_close);
-		init_pid(ARM_ID);
+		init_pid(ARM_L_ID);
+		init_pid(ARM_R_ID);
 	}
 }
 
@@ -322,7 +324,8 @@ float operation_grab() {
 
 	if (count_on_grab == 0) {
 		is_arm_close = 1;
-		init_pid(ARM_ID);
+		init_pid(ARM_L_ID);
+		init_pid(ARM_R_ID);
 	}
 	count_on_grab = count_on_grab + 1;
 	if (count_on_grab > 60 * ARM_GRAB_RAISE_WAIT_SEC) {
@@ -385,7 +388,8 @@ float operation_placing() {
 		}
 	} else if (count_on_placing == t_down_end) {
 		is_arm_close = 0;
-		init_pid(ARM_ID);
+		init_pid(ARM_L_ID);
+		init_pid(ARM_R_ID);
 	} else if (count_on_placing >= t_open_end && count_on_placing < t_rev_end) {
 		left_pow = -1;
 		right_pow = -1;
@@ -432,7 +436,8 @@ float is_init = 1;
 float reset() {
 	init_pid(ARM_V_ID);
 	init_pid(ARM_H_ID);
-	init_pid(ARM_ID);
+	init_pid(ARM_L_ID);
+	init_pid(ARM_R_ID);
 
 	left_pow = 0.0;
 	right_pow = 0.0;
