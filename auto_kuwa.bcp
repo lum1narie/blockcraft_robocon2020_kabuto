@@ -43,8 +43,8 @@ float MOTOR_ARM_R = MOTOR_6;
 
 float SEIKA_ARM_SENSOR_THRESHOLD = 3.0;
 float ARM_GRAB_RAISE_WAIT_SEC = 0.3;
-float ARM_HOLD_V_ANGLE = PI / 4;
-float ARM_RELEASE_V_ANGLE = -PI / 12;
+float ARM_HOLD_V_ANGLE = PI / 5;
+float ARM_RELEASE_V_ANGLE = -PI / 18;
 float WHITE_DOWN_SENSOR_THRESHOLD = 15.0;
 
 float SENSOR_FRONT_N = 3;
@@ -318,11 +318,9 @@ float operation_grab() {
 	}
 }
 
-float is_front_passed_endline = 0;
 float operation_running() {
 	float l = line_trace();
-	is_front_passed_endline = is_front_passed_endline + l;
-	if (if_passed_endline() && is_front_passed_endline) {
+	if (if_passed_endline()) {
 		print(STATE_PLACE);
 		state = STATE_PLACE;
 	}
@@ -330,19 +328,22 @@ float operation_running() {
 
 float count_on_placing = 0;
 float operation_placing() {
-	if (count_on_placing < 30) {
+	if (count_on_placing < 10) {
+		left_pow = 0.5;
+		right_pow = 0.5;
+	} else if (count_on_placing < 30) {
 		left_pow = 0.3;
 		right_pow = 0.3;
 	}
-	else if (count_on_placing == 50) {
+	else if (count_on_placing == 60) {
 		arm_v_angle = val_move(arm_v_angle, -1, ARM_RELEASE_V_ANGLE, ARM_HOLD_V_ANGLE, 3);
 		init_pid(ARM_V_ID);
 	}
-	else if (count_on_placing == 70) {
+	else if (count_on_placing == 80) {
 		arm_v_angle = val_move(arm_v_angle, -1, ARM_RELEASE_V_ANGLE, ARM_HOLD_V_ANGLE, 3);
 		init_pid(ARM_V_ID);
 	}
-	else if (count_on_placing == 90) {
+	else if (count_on_placing == 100) {
 		arm_v_angle = val_move(arm_v_angle, -1, ARM_RELEASE_V_ANGLE, ARM_HOLD_V_ANGLE, 3);
 		init_pid(ARM_V_ID);
 	}
@@ -414,7 +415,6 @@ float init() {
 	cv_e = 0;
 	state_start_init = 0;
 	count_on_grab = 0;
-	is_front_passed_endline = 0;
 	count_on_placing = 0;
 
 	SENSOR_FRONT_ARRAY[0] = SENSOR_0;
