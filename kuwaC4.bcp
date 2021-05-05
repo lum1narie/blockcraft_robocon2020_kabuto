@@ -1,0 +1,182 @@
+float COLOR_RED = 1;
+float COLOR_BLUE = 2;
+float TEAM_COLOR = 0;
+
+float PI = 3.14159265358;
+float MOTOR_LF = MOTOR_1;
+float MOTOR_LB = MOTOR_3;
+float MOTOR_RF = MOTOR_0;
+float MOTOR_RB = MOTOR_2;
+float MOTOR_AUP = MOTOR_4;
+float MOTOR_AR = MOTOR_5;
+float MOTOR_AL = MOTOR_6;
+float MOTOR_J = MOTOR_9;
+float SPEED = 10;
+float POWER = 30;
+float armUp = 0.0;
+float armWidth = 0.0;
+
+float ARM_ANGLE_OFF = (PI / 4);
+float ARM_ANGLE_ON = -(PI / 5);
+float ARM_UP_MAX = PI / 2;
+float ARM_UP_MIN = -PI / 8;
+
+float ARM_V_K_P = 30;
+float ARM_V_K_I = 10;
+float ARM_V_K_D = 2.5;
+float ARM_K_P = 10;
+float ARM_K_I = 0.4;
+float ARM_K_D = 0.1;
+
+float PID_N = 3;
+float ARM_V_ID = 0;
+float ARM_L_ID = 1;
+float ARM_R_ID = 2;
+float pid_table[2 * PID_N];
+
+float pid_control(float val, float target, float id, float k_p, float k_i, float k_d, float framerate) {
+	float last_i = id * 2;
+	float sum_i = id * 2 + 1;
+
+	float diff = target - val;
+	pid_table[sum_i] = pid_table[sum_i] + diff / framerate;
+
+	float retv = k_p * diff + k_i * pid_table[sum_i] + k_d * (diff - pid_table[last_i]) * framerate;
+	pid_table[last_i] = diff;
+
+	return retv;
+}
+
+float init_pid(float id){
+	float last_i = id * 2;
+	float sum_i = id * 2 + 1;
+
+	pid_table[last_i] = 0;
+	pid_table[sum_i] = 0;
+
+	return 0;
+}
+
+float not(float n) {
+	if (n) {
+		return 0;
+	} else {
+		return 1;
+	}
+}
+
+float is_arm_close = 0;
+
+float color_init(float color) {
+	if (color == COLOR_RED) {
+		__setColor(2);
+		__setRestartTo(124, 68, 44);
+	} else if (color == COLOR_BLUE) {
+		__setColor(4);
+		__setRestartTo(888-124, 68, 1136-44);
+	}
+}
+
+float is_init = 1;
+float main() {
+	float speedLeft = 0.0;
+	float speedRight = 0.0;
+	float speedJump = 0.0;
+
+	if (is_init) {
+		color_init(TEAM_COLOR);
+		init_pid(ARM_V_ID);
+		init_pid(ARM_L_ID);
+		init_pid(ARM_R_ID);
+		is_init = 0;
+	}
+
+	if (key(KEY_W)) {
+		speedLeft = (speedLeft + 1.0);
+		speedRight = (speedRight + 1.0);
+		speedJump = 25.0;
+	}
+	if (key(KEY_S)) {
+		speedLeft = (speedLeft - 1.0);
+		speedRight = (speedRight - 1.0);
+		speedJump = 25.0;
+	}
+	if (key(KEY_A)) {
+		speedLeft = (speedLeft - 0.75);
+		speedRight = (speedRight + 0.75);
+	}
+	if (key(KEY_D)) {
+		speedLeft = (speedLeft + 0.75);
+		speedRight = (speedRight - 0.75);
+	}
+	if (key(KEY_SPACE)) {
+		speedLeft = (speedLeft * 2.8);
+		speedRight = (speedRight * 2.8);
+	}
+	if (key(KEY_LEFT_SHIFT)) {
+		speedLeft = (speedLeft * 0.5);
+		speedRight = (speedRight * 0.5);
+	}
+	if (key(KEY_UP)) {
+		armUp = (armUp + 0.05);
+		init_pid(ARM_V_ID);
+	}
+	if (key(KEY_DOWN)) {
+		armUp = (armUp - 0.05);
+		init_pid(ARM_V_ID);
+	}
+	if (keyDown(KEY_Q)) {
+		is_arm_close = not(is_arm_close);
+		init_pid(ARM_L_ID);
+		init_pid(ARM_R_ID);
+	}
+	if (key(KEY_LEFT)) {
+		armWidth = armWidth + 0.05;
+		init_pid(ARM_L_ID);
+		init_pid(ARM_R_ID);
+	}
+	if (key(KEY_RIGHT)) {
+		armWidth = armWidth - 0.05;
+		init_pid(ARM_L_ID);
+		init_pid(ARM_R_ID);
+	}
+	if ((armUp < ARM_UP_MIN)) {
+		armUp = ARM_UP_MIN;
+		init_pid(ARM_V_ID);
+	}
+	if ((ARM_UP_MAX < armUp)) {
+		armUp = ARM_UP_MAX;
+		init_pid(ARM_V_ID);
+	}
+	if (is_arm_close) {
+		armWidth = ARM_ANGLE_ON;
+	} else {
+		armWidth = ARM_ANGLE_OFF;
+	}
+
+	set(MOTOR_LF, (speedLeft * SPEED));
+	set(MOTOR_LB, (speedLeft * SPEED));
+	set(MOTOR_RF, (0.0 - (speedRight * SPEED)));
+	set(MOTOR_RB, (0.0 - (speedRight * SPEED)));
+	set(MOTOR_J, (0.0 - speedJump));
+	// setMotor(MOTOR_AUP, (0.0 - armUp));
+	set(MOTOR_AUP, pid_control(get(MOTOR_AUP), -armUp, ARM_V_ID, ARM_V_K_P, ARM_V_K_I, ARM_V_K_D, 60));
+	// setMotor(MOTOR_AR, armWidth);
+	set(MOTOR_AR, pid_control(get(MOTOR_AR), armWidth, ARM_R_ID, ARM_K_P, ARM_K_I, ARM_K_D, 60));
+	// setMotor(MOTOR_AL, (0.0 - armWidth));
+	set(MOTOR_AL, pid_control(get(MOTOR_AL), -armWidth, ARM_L_ID, ARM_K_P, ARM_K_I, ARM_K_D, 60));
+}
+
+float setMotor(float motor, float angle) {
+	set(motor, (getRanged((angle - get(motor))) * POWER));
+}
+
+float getRanged(float angle) {
+	while ((angle < PI)) {
+		angle = (angle + (PI * 2));
+	}
+	while ((PI < angle)) {
+		angle = (angle - (PI * 2));
+	}
+	return angle;
+}
