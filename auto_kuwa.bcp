@@ -2,6 +2,10 @@ float PI = 3.14159265358;
 
 float SPEED = 5;
 
+float COLOR_RED = 1;
+float COLOR_BLUE = 2;
+float TEAM_COLOR = 0;
+
 float ARM_V_INIT = 0.0;
 float ARM_H_INIT = 0.0;
 float ARM_V_LIMIT_L = (0 - (PI / 6));
@@ -10,9 +14,9 @@ float ARM_H_LIMIT = (PI / 8);
 float ARM_ANGLE_OFF = (0 - (PI / 4));
 float ARM_ANGLE_ON = (PI / 5);
 
-float ARM_V_K_P = 30;
-float ARM_V_K_I = 10;
-float ARM_V_K_D = 2.5;
+float ARM_V_K_P = 40;
+float ARM_V_K_I = 6;
+float ARM_V_K_D = 1.5;
 float ARM_H_K_P = 30;
 float ARM_H_K_I = 0.6;
 float ARM_H_K_D = 0.15;
@@ -32,6 +36,23 @@ float pid_table[2 * PID_N];
 
 float LINETRACE_THRESHOLD = 17;
 
+float SEIKA_ARM_SENSOR_THRESHOLD = 3.0;
+float ARM_GRAB_RAISE_WAIT_SEC = 0.3;
+float ARM_HOLD_V_ANGLE = PI / 4;
+float ARM_RELEASE_V_ANGLE = -PI / 18;
+float WHITE_DOWN_SENSOR_THRESHOLD = 15.0;
+
+float PLACING_OVERRUN_DURATION_COUNT = 60;
+float PLACING_SLOW_1_DURATION_COUNT = 20;
+float PLACING_SLOW_2_DURATION_COUNT = 20;
+float PLACING_SLOW_R_DURATION_COUNT = 10;
+float PLACING_WAIT_DOWN_DURATION_COUNT = 50;
+float PLACING_ARM_DOWN_DURATION_COUNT = 120;
+float PLACING_ARM_OPEN_DURATION_COUNT = 60;
+float PLACING_REV_DURATION_COUNT = 120;
+
+float ARM_DOWN_STAGE_NUM = 4;
+
 float MOTOR_RF = MOTOR_0;
 float MOTOR_LF = MOTOR_1;
 float MOTOR_RB = MOTOR_2;
@@ -40,12 +61,6 @@ float MOTOR_ARM_V = MOTOR_4;
 float MOTOR_ARM_H = MOTOR_5;
 float MOTOR_ARM_L = MOTOR_7;
 float MOTOR_ARM_R = MOTOR_6;
-
-float SEIKA_ARM_SENSOR_THRESHOLD = 3.0;
-float ARM_GRAB_RAISE_WAIT_SEC = 0.3;
-float ARM_HOLD_V_ANGLE = PI / 5;
-float ARM_RELEASE_V_ANGLE = -PI / 18;
-float WHITE_DOWN_SENSOR_THRESHOLD = 15.0;
 
 float SENSOR_FRONT_N = 3;
 float SENSOR_REAR_N = 3;
@@ -277,7 +292,7 @@ float operation_dock() {
 float state_start_init = 0;
 float operation_before_grab() {
 	if (state_start_init == 0) {
-		init();
+		reset();
 		state_start_init = 1;
 	}
 
@@ -337,36 +352,45 @@ float debug_running() {
 }
 
 float count_on_placing = 0;
+float arm_down_stage = 0;
 float operation_placing() {
-	if (count_on_placing < 10) {
+
+	float t_overrun_end = PLACING_OVERRUN_DURATION_COUNT;
+	float t_slow_1_end = t_overrun_end + PLACING_SLOW_1_DURATION_COUNT;
+	float t_slow_2_end = t_slow_1_end + PLACING_SLOW_2_DURATION_COUNT;
+	float t_slow_r_end = t_slow_2_end + PLACING_SLOW_R_DURATION_COUNT;
+	float t_down_init = t_slow_r_end + PLACING_WAIT_DOWN_DURATION_COUNT;
+	float t_down_end = t_down_init + PLACING_ARM_DOWN_DURATION_COUNT;
+	float t_open_end = t_down_end + PLACING_ARM_OPEN_DURATION_COUNT;
+	float t_rev_end = t_open_end + PLACING_REV_DURATION_COUNT;
+
+	if (count_on_placing < t_overrun_end) {
+		left_pow = 0.8;
+		right_pow = 0.8;
+	} else if (count_on_placing < t_slow_1_end) {
 		left_pow = 0.5;
 		right_pow = 0.5;
-	} else if (count_on_placing < 30) {
+	} else if (count_on_placing < t_slow_2_end) {
 		left_pow = 0.3;
 		right_pow = 0.3;
-	}
-	else if (count_on_placing == 60) {
-		arm_v_angle = val_move(arm_v_angle, -1, ARM_RELEASE_V_ANGLE, ARM_HOLD_V_ANGLE, 3);
-		init_pid(ARM_V_ID);
-	}
-	else if (count_on_placing == 80) {
-		arm_v_angle = val_move(arm_v_angle, -1, ARM_RELEASE_V_ANGLE, ARM_HOLD_V_ANGLE, 3);
-		init_pid(ARM_V_ID);
-	}
-	else if (count_on_placing == 100) {
-		arm_v_angle = val_move(arm_v_angle, -1, ARM_RELEASE_V_ANGLE, ARM_HOLD_V_ANGLE, 3);
-		init_pid(ARM_V_ID);
-	}
-	else if (count_on_placing == 180) {
+	} else if (count_on_placing < t_slow_r_end) {
+		left_pow = -0.1;
+		right_pow = -0.1;
+	} else if (count_on_placing < t_down_end && arm_down_stage < ARM_DOWN_STAGE_NUM - 1) {
+		float stage_duration = PLACING_ARM_DOWN_DURATION_COUNT / (ARM_DOWN_STAGE_NUM + 1);
+		if (count_on_placing >= t_down_init + stage_duration * arm_down_stage) {
+			arm_v_angle = val_move(arm_v_angle, -1, ARM_RELEASE_V_ANGLE, ARM_HOLD_V_ANGLE, 3);
+			init_pid(ARM_V_ID);
+			arm_down_stage = arm_down_stage + 1;
+		}
+	} else if (count_on_placing == t_down_end) {
 		is_arm_close = 0;
 		init_pid(ARM_ID);
-	}
-	else if (count_on_placing >= 240 && count_on_placing < 360) {
+	} else if (count_on_placing >= t_open_end && count_on_placing < t_rev_end) {
 		left_pow = -1;
 		right_pow = -1;
 	}
-
-	if (count_on_placing >= 360) {
+	if (count_on_placing >= t_rev_end) {
 		arm_v_angle = PI / 2;
 		init_pid(ARM_V_ID);
 		print(STATE_END);
@@ -405,7 +429,7 @@ float operation() {
 float state = STATE_DOCK;
 
 float is_init = 1;
-float init() {
+float reset() {
 	init_pid(ARM_V_ID);
 	init_pid(ARM_H_ID);
 	init_pid(ARM_ID);
@@ -426,6 +450,7 @@ float init() {
 	state_start_init = 0;
 	count_on_grab = 0;
 	count_on_placing = 0;
+	arm_down_stage = 0;
 
 	SENSOR_FRONT_ARRAY[0] = SENSOR_0;
 	SENSOR_FRONT_ARRAY[1] = SENSOR_1;
@@ -437,10 +462,21 @@ float init() {
 	SENSOR_REAR_ARRAY[2] = SENSOR_5;
 }
 
+float color_init(float color) {
+	if (color == COLOR_RED) {
+		__setColor(2);
+		__setRestartTo(44, 68, 44);
+	} else if (color == COLOR_BLUE) {
+		__setColor(4);
+		__setRestartTo(888-44, 68, 1136-44);
+	}
+}
+
 float main() {
 	if (is_init) {
-		init();
+		reset();
 		is_init = 0;
+		color_init(TEAM_COLOR);
 	}
 
 	operation();
@@ -451,7 +487,7 @@ float main() {
 	}
 	if (keyDown(KEY_R)) {
 		print(STATE_DOCK);
-		init();
+		reset();
 		state = STATE_DOCK;
 	}
 
