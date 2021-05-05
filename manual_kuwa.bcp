@@ -1,6 +1,6 @@
 float COLOR_RED = 1;
 float COLOR_BLUE = 2;
-float TEAM_COLOR = 0;
+float TEAM_COLOR = COLOR_BLUE;
 
 float PI = 3.14159265358;
 float MOTOR_LF = MOTOR_1;
@@ -18,11 +18,10 @@ float armWidth = 0.0;
 
 float ARM_ANGLE_OFF = (PI / 4);
 float ARM_ANGLE_ON = -(PI / 5);
-float ARM_UP_MAX = PI / 2;
+float ARM_UP_MAX = PI / 3;
 float ARM_UP_MIN = -PI / 8;
 
-float ARM_UP_TICK = 50;
-float ARM_TICK = 50;
+float ARM_UP_TICK = 10;
 
 float ARM_V_K_P = 30;
 float ARM_V_K_I = 10;
